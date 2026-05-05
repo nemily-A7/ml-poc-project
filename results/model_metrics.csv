@@ -1,0 +1,4 @@
+model_key,model_name,model_path,r2,mae,rmse
+linear_regression,Régression Linéaire,/Users/nathan/ml-poc-project/models/linear_regression.joblib,0.3984,68.08,97.94
+random_forest,Random Forest,/Users/nathan/ml-poc-project/models/random_forest.joblib,0.4708,60.51,91.86
+xgboost,XGBoost,/Users/nathan/ml-poc-project/models/xgboost.joblib,0.5031,58.3,89.02
