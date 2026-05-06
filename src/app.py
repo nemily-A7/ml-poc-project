@@ -237,17 +237,17 @@ def page_resultats() -> None:
         with c1:
             st.plotly_chart(
                 _bar_chart(df, "r2", "R² — PRÉCISION (MAX 1.0)", "", 0.75),
-                use_container_width=True,
+                width="stretch",
             )
         with c2:
             st.plotly_chart(
                 _bar_chart(df, "mae", "MAE — ERREUR MOYENNE (WATTS)", " W", 90),
-                use_container_width=True,
+                width="stretch",
             )
         with c3:
             st.plotly_chart(
                 _bar_chart(df, "rmse", "RMSE — ERREUR SUR LES PICS (WATTS)", " W", 120),
-                use_container_width=True,
+                width="stretch",
             )
 
         st.markdown(
@@ -283,7 +283,7 @@ def page_resultats() -> None:
     section_header("Performance · Réel vs. Estimé — XGBoost")
     chemin_pred = PLOTS_DIR / "xgboost_reel_vs_predit.png"
     if chemin_pred.exists():
-        st.image(str(chemin_pred), use_container_width=True)
+        st.image(str(chemin_pred), width="stretch")
         st.caption(
             "Chaque point = 1 seconde de pédalage · "
             "Ligne rouge = prédiction parfaite · "
@@ -293,7 +293,7 @@ def page_resultats() -> None:
     section_header("Features · Importance des capteurs")
     chemin_imp = PLOTS_DIR / "feature_importance.png"
     if chemin_imp.exists():
-        st.image(str(chemin_imp), use_container_width=True)
+        st.image(str(chemin_imp), width="stretch")
         st.caption("La vitesse et la pente sont de loin les indicateurs les plus prédictifs")
 
 
@@ -365,7 +365,7 @@ def page_demo() -> None:
         height=280,
         margin=dict(t=20, b=0, l=40, r=40),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
     zones = [
         (100,  "Z1 · Récupération", "#48cae4"),
@@ -408,18 +408,18 @@ def page_donnees() -> None:
     with c1:
         p = PLOTS_DIR / "distribution_puissance.png"
         if p.exists():
-            st.image(str(p), use_container_width=True)
+            st.image(str(p), width="stretch")
             st.caption("La plupart du temps, le cycliste pédale entre 100 et 300 W")
     with c2:
         p = PLOTS_DIR / "distribution_fc.png"
         if p.exists():
-            st.image(str(p), use_container_width=True)
+            st.image(str(p), width="stretch")
             st.caption("La fréquence cardiaque oscille surtout entre 120 et 175 bpm")
 
     section_header("Corrélations · Relations entre capteurs")
     p = PLOTS_DIR / "correlation_matrix.png"
     if p.exists():
-        st.image(str(p), use_container_width=True)
+        st.image(str(p), width="stretch")
         st.caption("Plus la couleur est intense, plus les deux variables sont liées")
 
     section_header("Scatter · Capteurs vs Puissance")
@@ -427,18 +427,18 @@ def page_donnees() -> None:
     with c3:
         p = PLOTS_DIR / "hr_vs_power.png"
         if p.exists():
-            st.image(str(p), use_container_width=True)
+            st.image(str(p), width="stretch")
             st.caption("Fréquence cardiaque vs Puissance")
     with c4:
         p = PLOTS_DIR / "cadence_vs_power.png"
         if p.exists():
-            st.image(str(p), use_container_width=True)
+            st.image(str(p), width="stretch")
             st.caption("Cadence vs Puissance")
 
     section_header("Activité · Exemple de sortie complète")
     p = PLOTS_DIR / "exemple_sortie.png"
     if p.exists():
-        st.image(str(p), use_container_width=True)
+        st.image(str(p), width="stretch")
         st.caption("Vitesse, fréquence cardiaque et puissance seconde par seconde sur une sortie")
 
 
