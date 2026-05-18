@@ -176,17 +176,17 @@ def section_header(text: str) -> None:
     st.markdown(f'<p class="section-header">{text}</p>', unsafe_allow_html=True)
 
 
-def _zone(w: int) -> tuple[str, str]:
+def _zone(w: int) -> tuple[str, str, str]:
     if w < 100:
-        return "Z1 — Récupération", "#48cae4"
+        return "Z1 — Récupération", "#48cae4", "Effort très léger · idéal pour récupérer entre deux séances"
     elif w < 180:
-        return "Z2 — Endurance", "#52b788"
+        return "Z2 — Endurance", "#52b788", "Allure confortable · la base de l'entraînement cycliste"
     elif w < 250:
-        return "Z3 — Tempo", "#f9c74f"
+        return "Z3 — Tempo", "#f9c74f", "Effort soutenu · on commence à bien souffler"
     elif w < 320:
-        return "Z4 — Seuil lactique", "#f77f00"
+        return "Z4 — Seuil lactique", "#f77f00", "Effort intense · la limite de ce qu'on peut tenir longtemps"
     else:
-        return "Z5 — VO₂max", "#e63946"
+        return "Z5 — VO₂max", "#e63946", "Effort maximal · sprints et montées à bloc"
 
 
 def _bar_chart(df: pd.DataFrame, col: str, title: str, suffix: str, y_max: float) -> go.Figure:
@@ -316,13 +316,13 @@ def page_demo() -> None:
     section_header("Capteurs")
     col1, col2, col3 = st.columns(3)
     with col1:
-        hr  = st.slider("💓 Fréquence cardiaque", 60, 200, 150, format="%d bpm")
-        cad = st.slider("🔄 Cadence", 0, 120, 85, format="%d rpm")
+        hr  = st.slider("Fréquence cardiaque", 60, 200, 150, format="%d bpm")
+        cad = st.slider("Cadence", 0, 120, 85, format="%d rpm")
     with col2:
-        vitesse = st.slider("🚴 Vitesse", 0, 80, 30, format="%d km/h")
-        pente   = st.slider("⛰️ Pente", -15, 20, 0, format="%d%%")
+        vitesse = st.slider("Vitesse", 0, 80, 30, format="%d km/h")
+        pente   = st.slider("Pente", -15, 20, 0, format="%d%%")
     with col3:
-        alt = st.slider("📍 Altitude", 0, 2500, 200, format="%d m")
+        alt = st.slider("Altitude", 0, 2500, 200, format="%d m")
 
     X = np.array([[
         hr, cad, alt, vitesse, pente,
@@ -330,7 +330,7 @@ def page_demo() -> None:
         float(vitesse), float(hr), float(cad), float(pente),
     ]])
     puissance = max(0, round(modele.predict(X)[0]))
-    _, zone_color = _zone(puissance)
+    zone_label, zone_color, zone_desc = _zone(puissance)
 
     section_header("Puissance estimée")
 
@@ -367,6 +367,15 @@ def page_demo() -> None:
     )
     st.plotly_chart(fig, width="stretch")
 
+    st.markdown(
+        f'<div style="background:{zone_color}18; border:2px solid {zone_color}; border-radius:14px; '
+        f'padding:20px 28px; margin:12px 0 20px 0">'
+        f'<span style="color:{zone_color}; font-weight:800; font-size:1.2rem; display:block">{zone_label}</span>'
+        f'<span style="color:rgba(255,255,255,0.75); font-size:0.95rem; margin-top:4px; display:block">{zone_desc}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
     zones = [
         (100,  "Z1 · Récupération", "#48cae4"),
         (180,  "Z2 · Endurance",    "#52b788"),
@@ -378,11 +387,12 @@ def page_demo() -> None:
     for i, (seuil, label, color) in enumerate(zones):
         active = puissance < seuil and (i == 0 or puissance >= zones[i - 1][0])
         border = f"2px solid {color}" if active else f"1px solid {BORDER}"
-        bg     = f"{color}22" if active else "rgba(0,0,0,0)"
+        bg     = f"{color}30" if active else "rgba(0,0,0,0)"
+        weight = "800" if active else "600"
         cols[i].markdown(
             f'<div style="background:{bg}; border:{border}; border-radius:10px; '
             f'padding:10px 6px; text-align:center">'
-            f'<span style="color:{color}; font-weight:700; font-size:0.78rem">{label}</span>'
+            f'<span style="color:{color}; font-weight:{weight}; font-size:0.78rem">{label}</span>'
             f"</div>",
             unsafe_allow_html=True,
         )
@@ -452,16 +462,16 @@ def build_app() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
 
     tab1, tab2, tab3 = st.tabs([
+        "  Données    ",
         "  Résultats  ",
         "  Démo live  ",
-        "  Données    ",
     ])
     with tab1:
-        page_resultats()
-    with tab2:
-        page_demo()
-    with tab3:
         page_donnees()
+    with tab2:
+        page_resultats()
+    with tab3:
+        page_demo()
 
 
 if __name__ == "__main__":
