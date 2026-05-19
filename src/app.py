@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import streamlit as st
 
-from config import MODEL_METRICS_FILE, MODELS_DIR, PLOTS_DIR
+from config import MODELS_DIR, PLOTS_DIR
 
 
 STRAVA_ORANGE = "#FC4C02"
@@ -295,12 +295,12 @@ def _graphique_sortie(df: pd.DataFrame) -> go.Figure:
     t = df['secs'] / 60
     has_power = 'power' in df.columns
 
-    rows = 3 if has_power else 2
-    titles = (["Puissance (W)", "Fréquence cardiaque (bpm)", "Altitude (m)"] if has_power
-              else ["Fréquence cardiaque (bpm)", "Altitude (m)"])
+    rows = 4 if has_power else 3
+    titles = (["Puissance (W)", "Fréquence cardiaque (bpm)", "Cadence (rpm)", "Altitude (m)"] if has_power
+              else ["Fréquence cardiaque (bpm)", "Cadence (rpm)", "Altitude (m)"])
 
     fig = make_subplots(rows=rows, cols=1, shared_xaxes=True,
-                        vertical_spacing=0.06, subplot_titles=titles)
+                        vertical_spacing=0.05, subplot_titles=titles)
 
     row = 1
     if has_power:
@@ -317,6 +317,12 @@ def _graphique_sortie(df: pd.DataFrame) -> go.Figure:
     row += 1
 
     fig.add_trace(go.Scatter(
+        x=t, y=df['cad'],
+        line=dict(color="#f9c74f", width=1), name="Cadence",
+    ), row=row, col=1)
+    row += 1
+
+    fig.add_trace(go.Scatter(
         x=t, y=df['alt'],
         line=dict(color="#52b788", width=1), name="Altitude",
         fill="tozeroy", fillcolor="rgba(82,183,136,0.08)",
@@ -324,7 +330,7 @@ def _graphique_sortie(df: pd.DataFrame) -> go.Figure:
 
     fig.update_layout(
         plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        font=dict(color="white"), height=420, showlegend=False,
+        font=dict(color="white"), height=550, showlegend=False,
         margin=dict(t=40, b=20, l=60, r=20),
     )
     fig.update_xaxes(showgrid=True, gridcolor=BORDER, title_text="Temps (minutes)", row=row, col=1)
