@@ -228,35 +228,7 @@ def page_resultats() -> None:
     col3.markdown(stat_card("89 W", "Erreur RMSE", "penalise les pics"), unsafe_allow_html=True)
     col4.markdown(stat_card("1.62M", "Points d'entraînement", "1 ligne = 1 seconde"), unsafe_allow_html=True)
 
-    section_header("Analyse · Comparaison des 3 algorithmes")
-
-    if MODEL_METRICS_FILE.exists():
-        df = pd.read_csv(MODEL_METRICS_FILE)
-
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.plotly_chart(
-                _bar_chart(df, "r2", "R² — PRÉCISION (MAX 1.0)", "", 0.75),
-                width="stretch",
-            )
-        with c2:
-            st.plotly_chart(
-                _bar_chart(df, "mae", "MAE — ERREUR MOYENNE (WATTS)", " W", 90),
-                width="stretch",
-            )
-        with c3:
-            st.plotly_chart(
-                _bar_chart(df, "rmse", "RMSE — ERREUR SUR LES PICS (WATTS)", " W", 120),
-                width="stretch",
-            )
-
-        st.markdown(
-            f'<p style="font-size:0.78rem; color:{TEXT_DIM}; text-align:center">'
-            "R² : plus haut = mieux &nbsp;·&nbsp; MAE / RMSE : plus bas = mieux</p>",
-            unsafe_allow_html=True,
-        )
-
-    st.markdown("")
+    st.markdown("<br>", unsafe_allow_html=True)
 
     col_a, col_b = st.columns(2)
     with col_a:
@@ -280,6 +252,12 @@ def page_resultats() -> None:
             unsafe_allow_html=True,
         )
 
+    section_header("Features · Importance des capteurs")
+    chemin_imp = PLOTS_DIR / "feature_importance.png"
+    if chemin_imp.exists():
+        st.image(str(chemin_imp), width="stretch")
+        st.caption("La vitesse et la pente sont de loin les indicateurs les plus prédictifs")
+
     section_header("Performance · Réel vs. Estimé — XGBoost")
     chemin_pred = PLOTS_DIR / "xgboost_reel_vs_predit.png"
     if chemin_pred.exists():
@@ -289,12 +267,6 @@ def page_resultats() -> None:
             "Ligne rouge = prédiction parfaite · "
             "Plus les points sont proches de la ligne, meilleure est l'estimation"
         )
-
-    section_header("Features · Importance des capteurs")
-    chemin_imp = PLOTS_DIR / "feature_importance.png"
-    if chemin_imp.exists():
-        st.image(str(chemin_imp), width="stretch")
-        st.caption("La vitesse et la pente sont de loin les indicateurs les plus prédictifs")
 
 
 def page_demo() -> None:
