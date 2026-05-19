@@ -413,6 +413,12 @@ def page_donnees() -> None:
     )
     st.markdown('<div class="accent-bar"></div>', unsafe_allow_html=True)
 
+    section_header("Activité · Exemple de sortie complète")
+    p = PLOTS_DIR / "exemple_sortie.png"
+    if p.exists():
+        st.image(str(p), width="stretch")
+        st.caption("Vitesse, fréquence cardiaque et puissance seconde par seconde sur une sortie")
+
     section_header("Distributions · Puissance et fréquence cardiaque")
     c1, c2 = st.columns(2)
     with c1:
@@ -444,12 +450,6 @@ def page_donnees() -> None:
         if p.exists():
             st.image(str(p), width="stretch")
             st.caption("Cadence vs Puissance")
-
-    section_header("Activité · Exemple de sortie complète")
-    p = PLOTS_DIR / "exemple_sortie.png"
-    if p.exists():
-        st.image(str(p), width="stretch")
-        st.caption("Vitesse, fréquence cardiaque et puissance seconde par seconde sur une sortie")
 
 
 def build_app() -> None:
