@@ -4,6 +4,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit as st
 
 from config import MODEL_METRICS_FILE, MODELS_DIR, PLOTS_DIR
@@ -269,48 +270,79 @@ def page_resultats() -> None:
         )
 
 
-def page_demo() -> None:
-    st.markdown(
-        f'<p class="activity-title">'
-        f'<span class="live-dot"></span>Activité en cours</p>'
-        f'<p class="activity-sub">Règle tes capteurs · estimation en temps réel · XGBoost</p>',
-        unsafe_allow_html=True,
+def _appliquer_features(df: pd.DataFrame) -> pd.DataFrame:
+    d = df.copy()
+    delta_km   = d['km'].diff().fillna(0)
+    delta_secs = d['secs'].diff().fillna(1).replace(0, 1)
+    d['vitesse_kmh'] = (delta_km / delta_secs * 3600).clip(0, 120)
+
+    delta_alt = d['alt'].diff().fillna(0)
+    delta_m   = delta_km * 1000
+    d['pente_pct'] = np.where(delta_m > 0, (delta_alt / delta_m) * 100, 0)
+    d['pente_pct'] = d['pente_pct'].clip(-30, 30)
+
+    d['acceleration'] = d['vitesse_kmh'].diff().fillna(0).clip(-10, 10)
+    d['delta_hr']     = d['hr'].diff().fillna(0).clip(-10, 10)
+
+    d['vitesse_moy_5s'] = d['vitesse_kmh'].rolling(window=5, min_periods=1).mean()
+    d['hr_moy_5s']      = d['hr'].rolling(window=5, min_periods=1).mean()
+    d['cad_moy_5s']     = d['cad'].rolling(window=5, min_periods=1).mean()
+    d['pente_moy_5s']   = d['pente_pct'].rolling(window=5, min_periods=1).mean()
+    return d
+
+
+def _graphique_sortie(df: pd.DataFrame) -> go.Figure:
+    t = df['secs'] / 60
+    has_power = 'power' in df.columns
+
+    rows = 3 if has_power else 2
+    titles = (["Puissance (W)", "Fréquence cardiaque (bpm)", "Altitude (m)"] if has_power
+              else ["Fréquence cardiaque (bpm)", "Altitude (m)"])
+
+    fig = make_subplots(rows=rows, cols=1, shared_xaxes=True,
+                        vertical_spacing=0.06, subplot_titles=titles)
+
+    row = 1
+    if has_power:
+        fig.add_trace(go.Scatter(
+            x=t, y=df['power'],
+            line=dict(color=STRAVA_ORANGE, width=1), name="Puissance",
+        ), row=row, col=1)
+        row += 1
+
+    fig.add_trace(go.Scatter(
+        x=t, y=df['hr'],
+        line=dict(color="#e63946", width=1), name="FC",
+    ), row=row, col=1)
+    row += 1
+
+    fig.add_trace(go.Scatter(
+        x=t, y=df['alt'],
+        line=dict(color="#52b788", width=1), name="Altitude",
+        fill="tozeroy", fillcolor="rgba(82,183,136,0.08)",
+    ), row=row, col=1)
+
+    fig.update_layout(
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(color="white"), height=420, showlegend=False,
+        margin=dict(t=40, b=20, l=60, r=20),
     )
-    st.markdown('<div class="accent-bar"></div>', unsafe_allow_html=True)
+    fig.update_xaxes(showgrid=True, gridcolor=BORDER, title_text="Temps (minutes)", row=row, col=1)
+    fig.update_yaxes(showgrid=True, gridcolor=BORDER)
+    return fig
 
-    chemin_modele = MODELS_DIR / "xgboost.joblib"
-    if not chemin_modele.exists():
-        st.error("Modèle introuvable. Lance le notebook training.ipynb d'abord.")
-        return
 
-    modele = joblib.load(chemin_modele)
-
-    section_header("Capteurs")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        hr  = st.slider("Fréquence cardiaque", 60, 200, 150, format="%d bpm")
-        cad = st.slider("Cadence", 0, 120, 85, format="%d rpm")
-    with col2:
-        vitesse = st.slider("Vitesse", 0, 80, 30, format="%d km/h")
-        pente   = st.slider("Pente", -15, 20, 0, format="%d%%")
-    with col3:
-        alt = st.slider("Altitude", 0, 2500, 200, format="%d m")
-
-    X = np.array([[
-        hr, cad, alt, vitesse, pente,
-        0.0, 0.0,
-        float(vitesse), float(hr), float(cad), float(pente),
-    ]])
-    puissance = max(0, round(modele.predict(X)[0]))
+def _afficher_resultat(puissance: int) -> None:
     zone_label, zone_color, zone_desc = _zone(puissance)
 
-    section_header("Puissance estimée")
+    section_header("Puissance moyenne estimée")
 
     fig = go.Figure(go.Indicator(
         mode="gauge+number",
         value=puissance,
         domain={"x": [0, 1], "y": [0, 1]},
-        title={"text": "WATTS", "font": {"color": TEXT_DIM, "size": 12, "family": "Arial"}},
+        title={"text": "WATTS — MOYENNE DE LA SORTIE",
+               "font": {"color": TEXT_DIM, "size": 12, "family": "Arial"}},
         number={"font": {"color": zone_color, "size": 72, "family": "Arial Black"}},
         gauge={
             "axis": {
@@ -321,8 +353,7 @@ def page_demo() -> None:
                 "tickfont": {"color": TEXT_DIM, "size": 10},
             },
             "bar": {"color": zone_color, "thickness": 0.2},
-            "bgcolor": "rgba(0,0,0,0)",
-            "borderwidth": 0,
+            "bgcolor": "rgba(0,0,0,0)", "borderwidth": 0,
             "steps": [
                 {"range": [0,   100], "color": "rgba(72,202,228,0.10)"},
                 {"range": [100, 180], "color": "rgba(82,183,136,0.10)"},
@@ -332,18 +363,17 @@ def page_demo() -> None:
             ],
         },
     ))
-    fig.update_layout(
-        paper_bgcolor="rgba(0,0,0,0)",
-        height=280,
-        margin=dict(t=20, b=0, l=40, r=40),
-    )
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", height=280,
+                      margin=dict(t=20, b=0, l=40, r=40))
     st.plotly_chart(fig, width="stretch")
 
     st.markdown(
-        f'<div style="background:{zone_color}18; border:2px solid {zone_color}; border-radius:14px; '
-        f'padding:20px 28px; margin:12px 0 20px 0">'
-        f'<span style="color:{zone_color}; font-weight:800; font-size:1.2rem; display:block">{zone_label}</span>'
-        f'<span style="color:rgba(255,255,255,0.75); font-size:0.95rem; margin-top:4px; display:block">{zone_desc}</span>'
+        f'<div style="background:{zone_color}18; border:2px solid {zone_color};'
+        f' border-radius:14px; padding:20px 28px; margin:12px 0 20px 0">'
+        f'<span style="color:{zone_color}; font-weight:800; font-size:1.2rem;'
+        f' display:block">{zone_label}</span>'
+        f'<span style="color:rgba(255,255,255,0.75); font-size:0.95rem;'
+        f' margin-top:4px; display:block">{zone_desc}</span>'
         f'</div>',
         unsafe_allow_html=True,
     )
@@ -362,19 +392,101 @@ def page_demo() -> None:
         bg     = f"{color}30" if active else "rgba(0,0,0,0)"
         weight = "800" if active else "600"
         cols[i].markdown(
-            f'<div style="background:{bg}; border:{border}; border-radius:10px; '
-            f'padding:10px 6px; text-align:center">'
-            f'<span style="color:{color}; font-weight:{weight}; font-size:0.78rem">{label}</span>'
-            f"</div>",
+            f'<div style="background:{bg}; border:{border}; border-radius:10px;'
+            f' padding:10px 6px; text-align:center">'
+            f'<span style="color:{color}; font-weight:{weight};'
+            f' font-size:0.78rem">{label}</span></div>',
             unsafe_allow_html=True,
         )
 
-    section_header("Références · Puissances typiques")
-    r1, r2, r3, r4 = st.columns(4)
-    r1.markdown(stat_card("150 W", "Cycliste débutant", "balade tranquille"), unsafe_allow_html=True)
-    r2.markdown(stat_card("220 W", "Cycliste amateur", "sortie entraînement"), unsafe_allow_html=True)
-    r3.markdown(stat_card("380 W", "Tour de France", "moyenne sur une étape"), unsafe_allow_html=True)
-    r4.markdown(stat_card("1 100 W", "Sprint max pro", "effort de 2 secondes"), unsafe_allow_html=True)
+    section_header("Références · Profil du cycliste")
+    refs = [
+        ("150 W", "Cycliste débutant",  "balade tranquille",      0,   160),
+        ("220 W", "Cycliste amateur",   "sortie entraînement",   160,   290),
+        ("380 W", "Tour de France",     "moyenne sur une étape", 290,  9999),
+        ("1 100 W", "Sprint max pro",   "effort de 2 secondes",   -1,    -1),
+    ]
+    rcols = st.columns(4)
+    for i, (val, label, sub, smin, smax) in enumerate(refs):
+        active = smin <= puissance < smax
+        border = f"2px solid {zone_color}" if active else f"1px solid {BORDER}"
+        bg     = f"{zone_color}18" if active else CARD_BG
+        badge  = (f'<span style="display:inline-block; background:{zone_color};'
+                  f' color:white; font-size:0.6rem; font-weight:700;'
+                  f' padding:2px 8px; border-radius:20px;'
+                  f' text-transform:uppercase; margin-top:6px">Votre niveau</span>'
+                  if active else "")
+        rcols[i].markdown(
+            f'<div style="background:{bg}; border:{border}; border-radius:14px;'
+            f' padding:22px 16px; text-align:center">'
+            f'<span style="font-size:2.4rem; font-weight:800; color:{STRAVA_ORANGE};'
+            f' display:block; line-height:1">{val}</span>'
+            f'<span style="font-size:0.65rem; text-transform:uppercase;'
+            f' letter-spacing:0.12em; color:{TEXT_DIM}; display:block;'
+            f' margin-top:6px">{label}</span>'
+            f'<span style="font-size:0.78rem; color:rgba(255,255,255,0.4);'
+            f' display:block; margin-top:2px">{sub}</span>'
+            f'{badge}</div>',
+            unsafe_allow_html=True,
+        )
+
+
+def page_demo() -> None:
+    st.markdown(
+        '<p class="activity-title">'
+        '<span class="live-dot"></span>Analyse de sortie</p>'
+        '<p class="activity-sub">Charge un fichier CSV · estimation de la puissance · XGBoost</p>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="accent-bar"></div>', unsafe_allow_html=True)
+
+    chemin_modele = MODELS_DIR / "xgboost.joblib"
+    if not chemin_modele.exists():
+        st.error("Modèle introuvable. Lance le notebook training.ipynb d'abord.")
+        return
+
+    modele = joblib.load(chemin_modele)
+
+    section_header("Charger une sortie")
+    fichier = st.file_uploader(
+        "Fichier CSV (même format que les données du projet)",
+        type="csv",
+        label_visibility="collapsed",
+    )
+
+    if fichier is None:
+        st.markdown(
+            f'<div class="stat-card" style="text-align:center; padding:40px">'
+            f'<span style="color:{TEXT_DIM}; font-size:1rem">'
+            f'Dépose un fichier CSV pour commencer l\'analyse</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.session_state.pop("puissance_demo", None)
+        return
+
+    if st.session_state.get("demo_fichier") != fichier.name:
+        st.session_state.pop("puissance_demo", None)
+        st.session_state["demo_fichier"] = fichier.name
+
+    df = pd.read_csv(fichier)
+    cols_requises = ['hr', 'cad', 'alt', 'km', 'secs']
+    manquantes = [c for c in cols_requises if c not in df.columns]
+    if manquantes:
+        st.error(f"Colonnes manquantes dans le fichier : {', '.join(manquantes)}")
+        return
+
+    section_header("Aperçu de la sortie")
+    st.plotly_chart(_graphique_sortie(df), width="stretch")
+
+    if st.button("Calculer la puissance moyenne", type="primary"):
+        features = ['hr', 'cad', 'alt', 'vitesse_kmh', 'pente_pct', 'acceleration',
+                    'delta_hr', 'vitesse_moy_5s', 'hr_moy_5s', 'cad_moy_5s', 'pente_moy_5s']
+        df_enrichi = _appliquer_features(df).dropna(subset=features)
+        preds = np.maximum(modele.predict(df_enrichi[features].values), 0)
+        st.session_state["puissance_demo"] = max(0, round(float(preds.mean())))
+
+    if "puissance_demo" in st.session_state:
+        _afficher_resultat(st.session_state["puissance_demo"])
 
 
 def page_donnees() -> None:
